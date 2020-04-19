@@ -19,11 +19,15 @@ import string
 #Grammar & Spelling Lib
 import pylanguagetool
 import nltk
+import re
 
 # Flask initialization
 from flask import *
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from nltk.tokenize import PunktSentenceTokenizer
+nltk.download('averaged_perceptron_tagger')
+nltk.downlload('punkt')
 
 app = Flask(__name__)
 
@@ -46,7 +50,24 @@ def process():
             text_array[i] = "<p>" + text_array[i] + "</p>"
         
         text = Markup(''.join(text_array))
-        return render_template("result.html", text=text, word_count = word_count)
+        
+
+
+
+    #firstPersonSentiment
+    textClone = nltk.word_tokenize(text)
+    textCloneTag= nltk.pos_tag(textClone)
+    
+    tagged_sent =textCloneTag
+    tagged_sent_str = ' '.join([word + '/' + pos for word, pos in tagged_sent])
+
+    count = sum(1 for _ in re.finditer(r'\b%s\b' % re.escape("PRP"), tagged_sent_str))
+
+    processed="Your CV has " + str(count) + " instances of first-person usage. Please fix!"
+            
+    
+    return render_template("result.html", text=text, word_count = word_count, processed = processed)
+        
 
 def extract_text_from_pdf(file):
     resource_manager = PDFResourceManager()
@@ -67,6 +88,9 @@ def extract_text_from_pdf(file):
         #Omit a strange symbol and break the string to a new line
         return text.replace(text[-1], '\n')
 
+
+    
+    
 
 if __name__ == '__main__':
     app.run()
