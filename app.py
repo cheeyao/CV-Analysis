@@ -91,6 +91,13 @@ def process():
         else:
             list2_score[2] = False 
 
+        global list2_score
+        #scoring system
+        if int(len(f.read())/1024) > 20000:
+            list2_score[2] = True
+        else:
+            list2_score[2] = False 
+
         #Word count metrics
         word_count_num = len(text.split())
         word_count_result = word_metric(word_count_num)
@@ -169,6 +176,13 @@ def spellchecker(text):
         output = "Your resume is free of spelling errors! Congratulations!"
     else:
         output = "You may have misspelled the following words: " + '\n' + ', '.join(cleanList)   
+    
+    global list2_score
+    #scoring system
+    if cleanList:
+        list2_score[6] = False
+    else:
+        list2_score[6] = True 
 
     global list2_score
     #scoring system
@@ -187,7 +201,6 @@ def bulletPointCounter(text):
     bulletPointCount = len(bulletPointList)
 
     processed = "Your CV has " + str(bulletPointCount) + " total bullet points."
-
     global list2_score
     #scoring system
     if bulletPointCount >= 0:
@@ -241,6 +254,12 @@ def firstPersonSentiment(text):
 
     nounverb = "There were " + str(countNoun) + " nouns in your CV. It contains "+ str(countActionVerb) + " action verbs. Action verbs make you stand out as a candidate!"
 
+    global list2_score
+    #scoring system
+    if countFirstPerson > 5:
+        list2_score[0] = True
+    else:
+        list2_score[0] = False 
     
     if countActionVerb > 5 and countNoun > 5:
         list2_score[1] = True
@@ -911,7 +930,6 @@ def word_match(key,list,li,score,output):
             result = output + ": not included"
     return li,score,result    
 
-
 # word_matching is used for essential part
 # it will find the word that match the lists and return related result
 def word_matching(dictObject):
@@ -928,29 +946,40 @@ def word_matching(dictObject):
     li5 = True
     score = 0
     result = ["", "", "", "", "", ""]
-
+    highlight = []
+    
     for(key, value) in dictObject.items():
         #print(key)
         if li1:
             li1,score,result[1] = word_match(key,list1,li1,score,"Career objective")
+            if li1 is False:
+                highlight.append(key)
 
         if li2:
             li2,score,result[2] = word_match(key,list2,li2,score,"education")
+            if li2 is False:
+                highlight.append(key)
                 
         if li3:
             li3,score,result[3] = word_match(key,list3,li3,score,"Employment History")
+            if li3 is False:
+                highlight.append(key)
             
         if li4:
             li4,score,result[4] = word_match(key,list4,li4,score,"Skill")
+            if li4 is False:
+                highlight.append(key)
 
         if li5:
             li5,score,result[5] = word_match(key,list5,li5,score,"References")
+            if li5 is False:
+                highlight.append(key)
 
     global scored_list
     scored_list[0] = section_Scored([4,4,4,4,4], [li1, li2, li3, li4, li5])*100
-    result[0] = "Total score: " + str(scored_list[0])
+    result[0] = (scored_list[0])
+    result.append(highlight)
     return result
-
 
 # word_match_Softskill is used for softskill part
 # the function will only approved the resume have the specific skill when more than half of word from the list is found in the resume
@@ -1020,6 +1049,22 @@ def section_Scored(list1, list2):
 def final_overall_scored():
     return (section_Scored(list1_score,list2_score) + scored_list[0] + scored_list[1])/4*100
 
+
+def highlightText(textArr, f, color):
+    f.seek(0)
+    doc = fitz.Document(stream=bytearray(f.read()), filename = 'cv.pdf')
+    if (len(textArr) > 0):
+        for p in doc.pages():
+            for text in textArr:
+                text_instances = p.searchFor(text)
+                for inst in text_instances:
+                    highlight = p.addHighlightAnnot(inst)
+                    highlight.setColors({"stroke":color, "fill":(1, 1, 1)})
+                    highlight.update()
+
+    memoryStream = doc.write()
+    doc.close()
+    return base64.b64encode(memoryStream).decode('ascii')
 
 @app.route('/sw.js')
 def sw():
